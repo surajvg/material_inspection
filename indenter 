@@ -1,0 +1,43 @@
+from sqlalchemy import Column, Integer, String, Date
+from Database import base
+
+class Indenter(base):
+    __tablename__ = "indenter_table"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, unique=True, index=True)
+    username = Column(String)
+    staff_no = Column(Integer)
+    user_role = Column(String)
+    sbu = Column(String)
+    subdiv = Column(String)
+    phone_no = Column(String)
+    date = Column(Date)
+
+
+# Ensure Indenter is imported from your Database_models
+from Database_models import Indenter 
+
+@app.get("/indenter/details")
+def get_indenter_details(db: Session = Depends(init_db)):
+    """
+    Retrieves indenter records from the database including 
+    user ID, username, role, SBU, subdivision, and contact info.
+    """
+    records = db.query(Indenter).all()
+    
+    result = []
+    for r in records:
+        result.append({
+            "user_id": r.user_id,
+            "username": r.username,
+            "staff_no": r.staff_no,
+            "user_role": r.user_role,
+            "sbu": r.sbu,
+            "subdiv": r.subdiv,
+            "phone_no": r.phone_no,
+            "date": str(r.date) if r.date else None
+        })
+    
+    return result
+

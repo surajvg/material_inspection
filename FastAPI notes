@@ -1,0 +1,289 @@
+FASTAPI + SQLALCHEMY + SQL JOINS
+COMPLETE NOTES (WITH OLD SQL QUERIES)
+====================================
+
+------------------------------------------
+1. WHY JOINS ARE USED
+------------------------------------------
+Joins combine rows from multiple tables based on a related column.
+
+Used when:
+- Data is normalized
+- Tables are connected via foreign keys
+- You need combined information
+
+Example:
+users (id, name)
+orders (id, item, user_id)
+
+One user → many orders
+
+
+------------------------------------------
+2. TABLE RELATIONSHIP BASICS
+------------------------------------------
+
+Primary Key:
+- Uniquely identifies a row
+- Example: users.id
+
+Foreign Key:
+- References primary key of another table
+- Example: orders.user_id → users.id
+
+Purpose:
+- Maintain data integrity
+- Enable joins
+
+
+------------------------------------------
+3. OLD STYLE SQL JOIN (VERY IMPORTANT)
+------------------------------------------
+⚠️ This is the OLDEST SQL JOIN syntax (still seen in legacy systems)
+
+OLD SQL (IMPLICIT JOIN):
+SELECT users.name, orders.item
+FROM users, orders
+WHERE users.id = orders.user_id;
+
+PROBLEMS:
+- Hard to read
+- Easy to make mistakes
+- WHERE clause mixes join + filters
+
+❌ NOT RECOMMENDED today
+✅ IMPORTANT for interviews & legacy code
+
+
+------------------------------------------
+4. MODERN INNER JOIN
+------------------------------------------
+
+MEANING:
+- Returns only matching rows from both tables
+
+MODERN SQL:
+SELECT users.name, orders.item
+FROM users
+INNER JOIN orders ON users.id = orders.user_id;
+
+INNER keyword is OPTIONAL:
+JOIN == INNER JOIN
+
+SQLALCHEMY:
+db.query(User, Order).join(Order)
+
+
+------------------------------------------
+5. LEFT OUTER JOIN (OLD VS MODERN)
+------------------------------------------
+
+OLD SQL (RARE BUT EXISTS):
+(Some databases had proprietary syntax — avoid)
+
+MODERN SQL:
+SELECT users.name, orders.item
+FROM users
+LEFT JOIN orders ON users.id = orders.user_id;
+
+MEANING:
+- All users returned
+- Orders NULL if no match
+
+SQLALCHEMY:
+db.query(User, Order).outerjoin(Order)
+
+
+------------------------------------------
+6. RIGHT OUTER JOIN
+------------------------------------------
+
+MEANING:
+- All rows from RIGHT table
+- Rarely used in practice
+
+SQL:
+SELECT users.name, orders.item
+FROM users
+RIGHT JOIN orders ON users.id = orders.user_id;
+
+NOTE:
+Most developers prefer LEFT JOIN by swapping tables
+
+
+------------------------------------------
+7. FULL OUTER JOIN
+------------------------------------------
+
+MEANING:
+- Returns all rows from both tables
+- NULLs where no match exists
+
+SQL:
+SELECT users.name, orders.item
+FROM users
+FULL OUTER JOIN orders
+ON users.id = orders.user_id;
+
+NOTE:
+- Not supported by SQLite
+- Supported by PostgreSQL
+
+
+------------------------------------------
+8. JOIN WITH WHERE FILTER
+------------------------------------------
+
+PROCESS:
+1. JOIN tables
+2. Apply filters
+
+SQL:
+SELECT *
+FROM orders
+JOIN users ON users.id = orders.user_id
+WHERE users.id = 1;
+
+SQLALCHEMY:
+db.query(Order).join(User).filter(User.id == 1)
+
+
+------------------------------------------
+9. MULTIPLE TABLE JOINS (OLD STYLE)
+------------------------------------------
+
+OLD SQL (3 TABLES):
+SELECT *
+FROM a, b, c
+WHERE a.id = b.a_id
+AND b.id = c.b_id;
+
+PROBLEM:
+- Very hard to read
+- Error-prone
+
+
+------------------------------------------
+10. MULTIPLE TABLE JOINS (MODERN)
+------------------------------------------
+
+MODERN SQL:
+SELECT *
+FROM a
+JOIN b ON a.id = b.a_id
+JOIN c ON b.id = c.b_id;
+
+SQLALCHEMY:
+db.query(A, B, C)
+  .join(B, A.id == B.a_id)
+  .join(C, B.id == C.b_id)
+
+
+------------------------------------------
+11. JOIN VS SUBQUERY (OLD APPROACH)
+------------------------------------------
+
+OLD STYLE (SUBQUERY):
+SELECT *
+FROM orders
+WHERE user_id IN (
+    SELECT id FROM users WHERE name = 'Alice'
+);
+
+MODERN JOIN (BETTER):
+SELECT orders.*
+FROM orders
+JOIN users ON users.id = orders.user_id
+WHERE users.name = 'Alice';
+
+WHY JOIN IS BETTER:
+- Faster
+- Cleaner
+- Optimizer-friendly
+
+
+------------------------------------------
+12. JOIN VS joinedload() (SQLALCHEMY)
+------------------------------------------
+
+join():
+- SQL-level JOIN
+- Filters data
+- Used in analytics & reports
+
+joinedload():
+- ORM loading strategy
+- Prevents N+1 queries
+- Used in APIs
+
+EXAMPLE:
+db.query(User).options(joinedload(User.orders))
+
+
+------------------------------------------
+13. RAW SQL JOIN (WHEN ORM FAILS)
+------------------------------------------
+
+SQL:
+SELECT users.name, orders.item
+FROM users
+JOIN orders ON users.id = orders.user_id;
+
+SQLALCHEMY:
+db.execute(text("""
+SELECT users.name, orders.item
+FROM users
+JOIN orders ON users.id = orders.user_id
+"""))
+
+
+------------------------------------------
+14. COMMON INTERVIEW QUESTIONS
+------------------------------------------
+
+Q: Difference between JOIN and INNER JOIN?
+A: No difference. JOIN defaults to INNER JOIN.
+
+Q: Difference between JOIN and LEFT JOIN?
+A: LEFT JOIN includes unmatched rows.
+
+Q: Is old SQL join still valid?
+A: Yes, but not recommended.
+
+Q: Why avoid old join syntax?
+A: Poor readability and maintainability.
+
+
+------------------------------------------
+15. BEST PRACTICES
+------------------------------------------
+
+- Avoid old implicit joins
+- Always use explicit JOIN syntax
+- Prefer LEFT JOIN over RIGHT JOIN
+- Use joins instead of subqueries
+- Define ORM relationships
+- Use joinedload() for APIs
+
+
+------------------------------------------
+16. EASY MEMORY TRICK
+------------------------------------------
+
+OLD SQL:
+FROM table1, table2
+WHERE condition
+
+NEW SQL:
+FROM table1
+JOIN table2 ON condition
+
+ORM:
+join()       -> filtering
+outerjoin()  -> include missing data
+joinedload() -> performance optimization
+
+
+------------------------------------------
+END OF NOTES
+------------------------------------------

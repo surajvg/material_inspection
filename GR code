@@ -1,0 +1,281 @@
+import React, { useState, useEffect, useRef } from "react";
+
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  Grid,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  Button,
+  Box,
+} from "@mui/material";
+
+import CloseIcon from "@mui/icons-material/Close";
+import ReplayIcon from "@mui/icons-material/Replay";
+import PrintIcon from "@mui/icons-material/Print";
+
+import { QRCodeCanvas } from "qrcode.react";
+import JsBarcode from "jsbarcode";
+import { jsPDF } from "jspdf";
+
+const GeneratedGRDialogOnly = () => {
+  /* ===================== STATE ===================== */
+  const [generatedDialogOpen, setGeneratedDialogOpen] = useState(false);
+  const [selectedReprint, setSelectedReprint] = useState(null);
+
+  const [reprintQR, setReprintQR] = useState(false);
+  const [reprintBarcode, setReprintBarcode] = useState(false);
+  const [reprintBarcodeDataUrl, setReprintBarcodeDataUrl] = useState(null);
+
+  const printRef = useRef();
+
+  /* ===================== HELPERS ===================== */
+  const toLabel = (key) =>
+    key
+      .replace(/([A-Z])/g, " $1")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const formatDetailsAsText = (obj) =>
+    Object.entries(obj)
+      .map(([k, v]) => `${toLabel(k)}: ${v}`)
+      .join("\n");
+
+  const generateBarcodeDataUrl = (value, opts = {}) => {
+    const canvas = document.createElement("canvas");
+    JsBarcode(canvas, value, {
+      format: "CODE128",
+      displayValue: true,
+      ...opts,
+    });
+    return canvas.toDataURL("image/png");
+  };
+
+  /* ===================== EFFECT ===================== */
+  useEffect(() => {
+    if (reprintBarcode && selectedReprint) {
+      const val =
+        selectedReprint.Reference_No ||
+        selectedReprint.BEL_Part_Number ||
+        "";
+      setReprintBarcodeDataUrl(
+        generateBarcodeDataUrl(val, { lineColor: "#0D47A1" })
+      );
+    }
+  }, [reprintBarcode, selectedReprint]);
+
+  /* ===================== HANDLERS ===================== */
+  const handleReprintQR = () => {
+    if (!selectedReprint) return;
+    setReprintQR(true);
+    setReprintBarcode(false);
+  };
+
+  const handleReprintBarcode = () => {
+    if (!selectedReprint) return;
+    setReprintQR(false);
+    setReprintBarcode(true);
+  };
+
+  const handlePrintBothFromReprint = () => {
+    if (!selectedReprint) return;
+    setReprintQR(true);
+    setReprintBarcode(true);
+
+    setTimeout(() => {
+      try {
+        const pdf = new jsPDF("p", "pt", "a4");
+        pdf.setFontSize(14);
+        pdf.text("QR & Barcode Reprint", 60, 40);
+
+        const qrCanvas = document.querySelector("#reprintQR canvas");
+        const qrImage = qrCanvas ? qrCanvas.toDataURL("image/png") : null;
+
+        let y = 70;
+        if (qrImage) {
+          pdf.addImage(qrImage, "PNG", 40, y, 200, 200);
+          y += 220;
+        }
+
+        if (reprintBarcodeDataUrl) {
+          pdf.addImage(reprintBarcodeDataUrl, "PNG", 40, y, 300, 80);
+        }
+
+        pdf.save(`${selectedReprint.partNumber || "label"}_Reprint.pdf`);
+      } catch (error) {
+        console.error("PDF generation failed:", error);
+      }
+    }, 600);
+  };
+
+  /* ===================== UI ===================== */
+  return (
+    <Dialog
+      open={generatedDialogOpen}
+      onClose={() => setGeneratedDialogOpen(false)}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{ sx: { borderRadius: 3 } }}
+    >
+      <DialogTitle
+        sx={{
+          bgcolor: "#2e7d32",
+          color: "white",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <Typography
+          variant="h6"
+          sx={{ fontFamily: "Times New Roman", fontWeight: "bold" }}
+        >
+          Generated GR Details
+        </Typography>
+
+        <CloseIcon
+          sx={{ color: "white", backgroundColor: "red" }}
+          onClick={() => setGeneratedDialogOpen(false)}
+        />
+      </DialogTitle>
+
+      <DialogContent dividers sx={{ p: 4 }}>
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={7}>
+            <Typography
+              variant="subtitle2"
+              color="textSecondary"
+              sx={{ mb: 2, textTransform: "uppercase", fontWeight: "bold" }}
+            >
+              Details
+            </Typography>
+
+            {selectedReprint ? (
+              <Table size="small">
+                <TableBody>
+                  {[
+                    ["Reference No", "Reference_No"],
+                    ["Vendor Name", "Vendor_Name"],
+                    ["Vendor Code", "Vendor_Code"],
+                    ["Description", "Description"],
+                    ["BEL Part Number", "BEL_Part_Number"],
+                    ["Manufacture", "Manufacturing_Place"],
+                    ["MPN", "MPN"],
+                    ["Batch No", "Batch_Lot_No"],
+                    ["Quantity", "Quantity"],
+                    ["BEL PO No", "BEL_PO_No"],
+                    ["GR No", "GR_No"],
+                    ["GR Date", "GR_Date"],
+                    ["Invoice Number", "Invoice_No"],
+                    ["Invoice Date", "Invoice_Dt"],
+                  ].map(([label, key]) => (
+                    <TableRow key={key}>
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        {label}
+                      </TableCell>
+                      <TableCell>{selectedReprint?.[key]}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <Typography>No generated part selected.</Typography>
+            )}
+          </Grid>
+
+          <Grid
+            item
+            xs={12}
+            md={5}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              borderLeft: "1px solid #f0f0f0",
+            }}
+          >
+            <Box ref={printRef} sx={{ textAlign: "center", width: "100%" }}>
+              {reprintQR ? (
+                <Box
+                  id="reprintQR"
+                  sx={{
+                    p: 2,
+                    border: "1px solid #e0e0e0",
+                    borderRadius: 2,
+                    mb: 2,
+                    display: "inline-block",
+                  }}
+                >
+                  <QRCodeCanvas
+                    value={
+                      selectedReprint
+                        ? formatDetailsAsText(selectedReprint)
+                        : ""
+                    }
+                    size={150}
+                    includeMargin
+                  />
+                </Box>
+              ) : reprintBarcode && reprintBarcodeDataUrl ? (
+                <Box
+                  sx={{
+                    p: 2,
+                    border: "1px solid #e0e0e0",
+                    borderRadius: 2,
+                    mb: 2,
+                  }}
+                >
+                  <img
+                    src={reprintBarcodeDataUrl}
+                    alt="barcode"
+                    style={{ marginTop: 10, height: 80, maxWidth: "100%" }}
+                  />
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    p: 4,
+                    color: "text.secondary",
+                    border: "2px dashed #e0e0e0",
+                    borderRadius: 2,
+                  }}
+                >
+                  <ReplayIcon sx={{ fontSize: 60, opacity: 0.2 }} />
+                  <Typography>View codes below</Typography>
+                </Box>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
+      </DialogContent>
+
+      <DialogActions sx={{ p: 3, bgcolor: "#f5f5f5" }}>
+        <Button variant="contained" onClick={handleReprintQR}>
+          View QR
+        </Button>
+        <Button
+          variant="contained"
+          sx={{ background: "#0288d1" }}
+          onClick={handleReprintBarcode}
+        >
+          View Barcode
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<PrintIcon />}
+          onClick={handlePrintBothFromReprint}
+        >
+          Print Both
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+export default GeneratedGRDialogOnly;
